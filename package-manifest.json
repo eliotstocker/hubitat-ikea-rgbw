@@ -1,0 +1,18 @@
+{
+  "packageName": "Ikea Trådfri RGBW Bulb driver",
+  "author": "Eliot Stocker",
+  "version": "1.0.0",
+  "minimumHEVersion": "0.0",
+  "licenseFile": "https://raw.githubusercontent.com/eliotstocker/hubitat-ikea-rgbw/main/LICENSE",
+  "documentationLink": "https://github.com/eliotstocker/hubitat-ikea-rgbw/blob/main/README.md",
+  "dateReleased": "2020-10-14",
+  "drivers": [
+    {
+      "id": "b6cf8840-8e8e-41bb-b368-f7f4611588c7",
+      "name": "IKEA Tradfri RGBW Light",
+      "namespace": "piratemedia",
+      "location": "https://raw.githubusercontent.com/eliotstocker/hubitat-ikea-rgbw/main/ikea-tradfri-rgbw-device.groovy",
+      "required": true
+    }
+  ]
+}
