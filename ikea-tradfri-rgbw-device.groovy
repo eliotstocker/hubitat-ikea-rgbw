@@ -20,18 +20,18 @@
  *  This handler is written so that it reports any change in the bulb state (on/off, brightness, color) as an event
  *  immediately to be processed by other apps.
  *
- *  Author: Pedro Garcia & Eliot Stocker
- *  Date: 2017-09-17
- *  Version: 1.2
+ *  Author: Pedro Garcia & Eliot Stocker & Ivar Holand
+ *  Date: 2020-11-20
+ *  Version: 2.0
  **/
 
 import hubitat.zigbee.zcl.DataType
 import hubitat.helper.ColorUtils
 
 metadata {
-    definition (name: "IKEA Tradfri RGBW Light",
-            namespace: "piratemedia",
-            author: "Eliot Stocker") {
+    definition (name: "IKEA Tradfri RGBW Light HE v2",
+            namespace: "iholand",
+            author: "Ivar Holand") {
 
         capability "Actuator"
         capability "Color Control"
@@ -48,6 +48,11 @@ metadata {
         // Trådfri RGB bulb
         fingerprint profileId: "0104", inClusters: "0000, 0003, 0004, 0005, 0006, 0008, 0300, 0B05, 1000", outClusters: "0005, 0019, 0020, 1000", manufacturer: "IKEA of Sweden",  model: "TRADFRI bulb E27 CWS opal 600lm", deviceJoinName: "TRADFRI bulb E27 CWS opal 600lm"
     }
+
+    preferences {
+        input name: "logEnable", type: "bool", title: "Enable debug logging", defaultValue: true
+        input name: "traceEnable", type: "bool", title: "Enable trace logging", defaultValue: true
+    }
 }
 
 private getMAX_WHITE_SATURATION() { 70 }
@@ -56,11 +61,17 @@ private getMIN_COLOR_TEMP() { 2700 }
 private getMAX_COLOR_TEMP() { 6500 }
 
 def logDebug(msg) {
-    log.debug msg
+    if(logEnable) log.debug msg
 }
 
 def logTrace(msg) {
-    log.trace msg
+    if(traceEnable) log.trace msg
+}
+
+def logsOff() {
+    log.warn "debug logging disabled..."
+    device.updateSetting("logEnable", [value: "false", type: "bool"])
+    device.updateSetting("traceEnable", [value: "false", type: "bool"])
 }
 
 def parseHex4le(hex) {
@@ -316,6 +327,11 @@ def poll() {
 def configure() {
     sendEvent(name: "checkInterval", value: 2 * 10 * 60 + 1 * 60, displayed: false, data: [protocol: "zigbee", hubHardwareId: device.hub.hardwareID])
     refresh()
+}
+
+def updated() {
+    log.debug "Device updated"
+    if(logEnable) runIn(30*60, logsOff)
 }
 
 def installed() {
