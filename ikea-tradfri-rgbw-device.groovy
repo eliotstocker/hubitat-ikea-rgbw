@@ -254,11 +254,32 @@ def on() {
     zigbee.on()
 }
 
-def setLevel(value) {
-    zigbee.setLevel(value)
+def sendZigbeeCommands() {
+    List cmds = state.cmds
+
+    if (cmds != null) {
+        state.cmds = []
+
+        return cmds
+    }
+}
+
+def setLevel(value, rate=null) {
+    logDebug "Set level $value, $rate"
+
+    if (rate == null) {
+        state.cmds += zigbee.setLevel(value)
+    } else {
+        state.cmds += zigbee.setLevel(value, rate)
+    }
+
+    unschedule(sendZigbeeCommands)
+    runInMillis(100, sendZigbeeCommands)
 }
 
 def setColorTemperature(value) {
+    logDebug "Set color temperature $value"
+
     def sat = MAX_WHITE_SATURATION - (((value - MIN_COLOR_TEMP) / (MAX_COLOR_TEMP - MIN_COLOR_TEMP)) * MAX_WHITE_SATURATION)
     setColor([
             hue: WHITE_HUE,
@@ -267,7 +288,7 @@ def setColorTemperature(value) {
 }
 
 def setColor(value) {
-    log.debug "setColor($value)"
+    logDebug "setColor($value)"
     def rgb = colorHsv2Rgb(value.hue / 100, value.saturation / 100)
 
     logTrace "setColor: RGB ($rgb.red, $rgb.green, $rgb.blue)"
@@ -282,7 +303,23 @@ def setColor(value) {
     def strX = DataType.pack(intX, DataType.UINT16, true);
     def strY = DataType.pack(intY, DataType.UINT16, true);
 
-    zigbee.command(0x0300, 0x07, strX, strY, "0a00")
+    List cmds = []
+
+    def level = value.level
+    def rate = value.rate
+
+    if (level != null && rate != null) {
+        cmds += zigbee.setLevel(level, rate)
+    } else if (level != null) {
+        cmds += zigbee.setLevel(level)
+    }
+
+    cmds += zigbee.command(0x0300, 0x07, strX, strY, "0a00")
+
+    state.cmds += cmds
+
+    unschedule(sendZigbeeCommands)
+    runInMillis(100, sendZigbeeCommands)
 }
 
 def setHue(hue) {
@@ -317,6 +354,7 @@ def refresh() {
     state.colorChanged = false
     state.colorXReported = false
     state.colorYReported = false
+    state.cmds = []
     zigbee.onOffRefresh() + zigbee.levelRefresh() + colorControlRefresh() + zigbee.onOffConfig(0, 300) + zigbee.levelConfig() + colorControlConfig(0, 300, 1)
 }
 
