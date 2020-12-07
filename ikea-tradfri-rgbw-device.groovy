@@ -369,6 +369,7 @@ def configure() {
 
 def updated() {
     log.debug "Device updated"
+    state.cmds = []
     if(logEnable) runIn(30*60, logsOff)
 }
 
