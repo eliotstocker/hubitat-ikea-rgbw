@@ -29,9 +29,9 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.ColorUtils
 
 metadata {
-    definition (name: "IKEA Tradfri RGBW Light HE v2",
-            namespace: "iholand",
-            author: "Ivar Holand") {
+    definition (name: "IKEA Tradfri RGBW Light",
+            namespace: "piratemedia",
+            author: "Eliot Stocker") {
 
         capability "Actuator"
         capability "Color Control"
