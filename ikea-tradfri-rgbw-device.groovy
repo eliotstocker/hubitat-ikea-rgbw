@@ -20,9 +20,9 @@
  *  This handler is written so that it reports any change in the bulb state (on/off, brightness, color) as an event
  *  immediately to be processed by other apps.
  *
- *  Author: Pedro Garcia & Eliot Stocker
- *  Date: 2017-09-17
- *  Version: 1.2
+ *  Author: Pedro Garcia & Eliot Stocker & Ivar Holand
+ *  Date: 2020-11-20
+ *  Version: 2.0
  **/
 
 import hubitat.zigbee.zcl.DataType
@@ -48,6 +48,11 @@ metadata {
         // Trådfri RGB bulb
         fingerprint profileId: "0104", inClusters: "0000, 0003, 0004, 0005, 0006, 0008, 0300, 0B05, 1000", outClusters: "0005, 0019, 0020, 1000", manufacturer: "IKEA of Sweden",  model: "TRADFRI bulb E27 CWS opal 600lm", deviceJoinName: "TRADFRI bulb E27 CWS opal 600lm"
     }
+
+    preferences {
+        input name: "logEnable", type: "bool", title: "Enable debug logging", defaultValue: true
+        input name: "traceEnable", type: "bool", title: "Enable trace logging", defaultValue: true
+    }
 }
 
 private getMAX_WHITE_SATURATION() { 70 }
@@ -56,11 +61,17 @@ private getMIN_COLOR_TEMP() { 2700 }
 private getMAX_COLOR_TEMP() { 6500 }
 
 def logDebug(msg) {
-    log.debug msg
+    if(logEnable) log.debug msg
 }
 
 def logTrace(msg) {
-    log.trace msg
+    if(traceEnable) log.trace msg
+}
+
+def logsOff() {
+    log.warn "debug logging disabled..."
+    device.updateSetting("logEnable", [value: "false", type: "bool"])
+    device.updateSetting("traceEnable", [value: "false", type: "bool"])
 }
 
 def parseHex4le(hex) {
@@ -243,11 +254,32 @@ def on() {
     zigbee.on()
 }
 
-def setLevel(value) {
-    zigbee.setLevel(value)
+def sendZigbeeCommands() {
+    List cmds = state.cmds
+
+    if (cmds != null) {
+        state.cmds = []
+
+        return cmds
+    }
+}
+
+def setLevel(value, rate=null) {
+    logDebug "Set level $value, $rate"
+
+    if (rate == null) {
+        state.cmds += zigbee.setLevel(value)
+    } else {
+        state.cmds += zigbee.setLevel(value, rate)
+    }
+
+    unschedule(sendZigbeeCommands)
+    runInMillis(100, sendZigbeeCommands)
 }
 
 def setColorTemperature(value) {
+    logDebug "Set color temperature $value"
+
     def sat = MAX_WHITE_SATURATION - (((value - MIN_COLOR_TEMP) / (MAX_COLOR_TEMP - MIN_COLOR_TEMP)) * MAX_WHITE_SATURATION)
     setColor([
             hue: WHITE_HUE,
@@ -256,7 +288,7 @@ def setColorTemperature(value) {
 }
 
 def setColor(value) {
-    log.debug "setColor($value)"
+    logDebug "setColor($value)"
     def rgb = colorHsv2Rgb(value.hue / 100, value.saturation / 100)
 
     logTrace "setColor: RGB ($rgb.red, $rgb.green, $rgb.blue)"
@@ -271,7 +303,23 @@ def setColor(value) {
     def strX = DataType.pack(intX, DataType.UINT16, true);
     def strY = DataType.pack(intY, DataType.UINT16, true);
 
-    zigbee.command(0x0300, 0x07, strX, strY, "0a00")
+    List cmds = []
+
+    def level = value.level
+    def rate = value.rate
+
+    if (level != null && rate != null) {
+        cmds += zigbee.setLevel(level, rate)
+    } else if (level != null) {
+        cmds += zigbee.setLevel(level)
+    }
+
+    cmds += zigbee.command(0x0300, 0x07, strX, strY, "0a00")
+
+    state.cmds += cmds
+
+    unschedule(sendZigbeeCommands)
+    runInMillis(100, sendZigbeeCommands)
 }
 
 def setHue(hue) {
@@ -306,6 +354,7 @@ def refresh() {
     state.colorChanged = false
     state.colorXReported = false
     state.colorYReported = false
+    state.cmds = []
     zigbee.onOffRefresh() + zigbee.levelRefresh() + colorControlRefresh() + zigbee.onOffConfig(0, 300) + zigbee.levelConfig() + colorControlConfig(0, 300, 1)
 }
 
@@ -316,6 +365,12 @@ def poll() {
 def configure() {
     sendEvent(name: "checkInterval", value: 2 * 10 * 60 + 1 * 60, displayed: false, data: [protocol: "zigbee", hubHardwareId: device.hub.hardwareID])
     refresh()
+}
+
+def updated() {
+    log.debug "Device updated"
+    state.cmds = []
+    if(logEnable) runIn(30*60, logsOff)
 }
 
 def installed() {
