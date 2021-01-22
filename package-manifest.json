@@ -1,11 +1,12 @@
 {
   "packageName": "Ikea Trådfri RGBW Bulb driver",
   "author": "Eliot Stocker",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "minimumHEVersion": "0.0",
   "licenseFile": "https://raw.githubusercontent.com/eliotstocker/hubitat-ikea-rgbw/main/LICENSE",
   "documentationLink": "https://github.com/eliotstocker/hubitat-ikea-rgbw/blob/main/README.md",
-  "dateReleased": "2020-10-14",
+  "dateReleased": "2021-01-22",
+  "releaseNotes": "Pulled in Changes by: ivarho/n/nThese Include:/n*Disable Logging\n*Color Temperature State Fixes\n*Add Rate for set Level command (tweak dimming speeds)",
   "drivers": [
     {
       "id": "b6cf8840-8e8e-41bb-b368-f7f4611588c7",
