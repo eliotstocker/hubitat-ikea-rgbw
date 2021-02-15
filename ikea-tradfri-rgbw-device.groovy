@@ -21,8 +21,8 @@
  *  immediately to be processed by other apps.
  *
  *  Author: Pedro Garcia & Eliot Stocker & Ivar Holand
- *  Date: 2020-11-20
- *  Version: 2.0
+ *  Date: 2021-02-15
+ *  Version: 2.1
  **/
 
 import hubitat.zigbee.zcl.DataType
@@ -44,6 +44,7 @@ metadata {
         capability "Switch Level"
         capability "Health Check"
         capability "Light"
+        capability "ChangeLevel"
 
         // Trådfri RGB bulb
         fingerprint profileId: "0104", inClusters: "0000, 0003, 0004, 0005, 0006, 0008, 0300, 0B05, 1000", outClusters: "0005, 0019, 0020, 1000", manufacturer: "IKEA of Sweden",  model: "TRADFRI bulb E27 CWS opal 600lm", deviceJoinName: "TRADFRI bulb E27 CWS opal 600lm"
@@ -52,6 +53,7 @@ metadata {
     preferences {
         input name: "logEnable", type: "bool", title: "Enable debug logging", defaultValue: true
         input name: "traceEnable", type: "bool", title: "Enable trace logging", defaultValue: true
+        input name: "levelChangeRate", type: "number", title: "Level change rate (0..255): ", defaultValue: 48
     }
 }
 
@@ -441,6 +443,21 @@ def setGenericName(hue){
     return createEvent(name: "colorName", value: colorName ,descriptionText: descriptionText)
 }
 
+def startLevelChange(direction) {
+    def dir = direction == "up"? 0 : 1
+	def rate = 100
+
+    if (levelChangeRate != null) {
+        rate = levelChangeRate
+    }
+
+	return zigbee.command(0x0008, 0x01, "0x${iTo8bitHex(dir)} 0x${iTo8bitHex(rate)}")
+}
+
+def stopLevelChange() {
+    return zigbee.command(0x0008, 0x03, "") + zigbee.levelRefresh()
+}
+
 // Color Management functions
 
 def min(first, ... rest) {
@@ -619,4 +636,8 @@ def colorRgb2Hsv(r, g, b)
     logTrace "> Color HSV: ($h, $s, $v)"
 
     return [ hue: h, saturation: s, level: v ]
+}
+
+def iTo8bitHex(value) {
+    return zigbee.convertToHexString(value.toInteger(), 2)
 }
