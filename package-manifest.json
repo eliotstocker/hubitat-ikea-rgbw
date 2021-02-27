@@ -5,6 +5,7 @@
   "minimumHEVersion": "0.0",
   "licenseFile": "https://raw.githubusercontent.com/eliotstocker/hubitat-ikea-rgbw/main/LICENSE",
   "documentationLink": "https://github.com/eliotstocker/hubitat-ikea-rgbw/blob/main/README.md",
+  "communityLink": "https://community.hubitat.com/t/tradfri-led-rgb-bulb/5524/82",
   "dateReleased": "2021-02-17",
   "releaseNotes": "V1.2.0:\n*Change Level commands now working (Changes by: ivarho)\n\nV1.1.0:\nPulled in Changes by: ivarho\n\nThese Include:\n*Disable Logging\n*Color Temperature State Fixes\n*Add Rate for set Level command (tweak dimming speeds)",
   "drivers": [
