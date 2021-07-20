@@ -194,7 +194,32 @@ def parse(String description) {
                         logTrace "Color Change: RGB ($rgb.red, $rgb.green, $rgb.blue)"
                         events += updateColor(rgb)
                     }
+                } else {
+                    logDebug "Sending color event based on pending values"
+                    if (state.pendingColorUpdate) {
+                        parsed = true
+                        def rgb = colorXy2Rgb(state.colorX, state.colorY)
+                        events += updateColor(rgb)
+                        state.pendingColorUpdate = false
+                    }
+
                 }
+            } else if (cluster.clusterId == 0x0008) {
+                // IKEA bulbs do not report back their current level setting, but the bulb turns on on level change
+                events += createEvent(name: "switch", value: "on")
+
+                if (state.pendingLevelChange != null) {
+
+                    events += createEvent(name: "level", value: state.pendingLevelChange)
+
+                    if (state.pendingLevelChange == 0) {
+                        events += createEvent(name: "switch", value: "off")
+                    }
+
+                    state.pendingLevelChange = null
+                }
+
+                parsed = true
             }
             else {
                 logDebug "Not parsing cluster message: $cluster"
@@ -220,7 +245,7 @@ def updateColor(rgb) {
     hsv.hue = Math.round(hsv.hue * 100).intValue()
     hsv.saturation = Math.round(hsv.saturation * 100).intValue()
     hsv.level = Math.round(hsv.level * 100).intValue()
-    logTrace "updateColor: RGB ($hsv.hue, $hsv.saturation, $hsv.level)"
+    logTrace "updateColor: HSV ($hsv.hue, $hsv.saturation, $hsv.level)"
 
     rgb.red = Math.round(rgb.red * 255).intValue()
     rgb.green = Math.round(rgb.green * 255).intValue()
@@ -269,6 +294,8 @@ def sendZigbeeCommands() {
 def setLevel(value, rate=null) {
     logDebug "Set level $value, $rate"
 
+    state.pendingLevelChange = value
+
     if (rate == null) {
         state.cmds += zigbee.setLevel(value)
     } else {
@@ -279,13 +306,15 @@ def setLevel(value, rate=null) {
     runInMillis(100, sendZigbeeCommands)
 }
 
-def setColorTemperature(value) {
+def setColorTemperature(value, level=null, rate=null) {
     logDebug "Set color temperature $value"
 
     def sat = MAX_WHITE_SATURATION - (((value - MIN_COLOR_TEMP) / (MAX_COLOR_TEMP - MIN_COLOR_TEMP)) * MAX_WHITE_SATURATION)
     setColor([
             hue: WHITE_HUE,
-            saturation: sat
+            saturation: sat,
+            level: level,
+            rate: rate
     ])
 }
 
@@ -302,6 +331,9 @@ def setColor(value) {
 
     logTrace "setColor: xy ($intX, $intY)"
 
+    state.colorX = xy.x
+    state.colorY = xy.y
+
     def strX = DataType.pack(intX, DataType.UINT16, true);
     def strY = DataType.pack(intY, DataType.UINT16, true);
 
@@ -311,14 +343,20 @@ def setColor(value) {
     def rate = value.rate
 
     if (level != null && rate != null) {
+        state.pendingLevelChange = level
         cmds += zigbee.setLevel(level, rate)
     } else if (level != null) {
+        state.pendingLevelChange = level
         cmds += zigbee.setLevel(level)
     }
+
+    state.pendingColorUpdate = true
 
     cmds += zigbee.command(0x0300, 0x07, strX, strY, "0a00")
 
     state.cmds += cmds
+
+    logTrace "zigbee command: $cmds"
 
     unschedule(sendZigbeeCommands)
     runInMillis(100, sendZigbeeCommands)
