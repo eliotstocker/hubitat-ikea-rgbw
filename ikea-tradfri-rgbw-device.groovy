@@ -524,7 +524,7 @@ def colorGammaRevert(component) {
     return (component <= 0.0031308) ? 12.92 * component : (1.0 + 0.055) * Math.pow(component, (1.0 / 2.4)) - 0.055;
 }
 
-def colorXy2Rgb(x, y) {
+def colorXy2Rgb(x = 255, y = 255) {
 
     logTrace "< Color xy: ($x, $y)"
 
